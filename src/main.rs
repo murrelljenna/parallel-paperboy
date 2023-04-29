@@ -36,7 +36,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .insert_resource(ClearColor(BACKGROUND_COLOR))
-        .insert_resource::<graph::GameWorld>(*graph::create_graph())
+        .insert_resource::<graph::GameWorld>(graph::create_graph())
         .add_startup_system(setup_drawing_map)
         .add_startup_system(add_potential_destinations)
         .add_system(activate_new_destination)

@@ -3,7 +3,7 @@ use bevy::utils::petgraph::Graph;
 use bevy::math::*;
 use bevy::prelude::*;
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Clone)]
 struct RoadNode {
     pos: Vec2
 }
@@ -21,12 +21,12 @@ impl Default for RoadNode {
     fn default() -> RoadNode { RoadNode::from_xy(0., 0.) }
 }
 
-#[derive(Resource)]
+#[derive(Resource, Clone)]
 pub(crate) struct GameWorld {
     graph: Graph::<RoadNode, i32>
 }
 
-pub(crate) fn create_graph() -> Box<GameWorld> {
+pub(crate) fn create_graph() -> GameWorld {
     let mut deps = Graph::<RoadNode, i32>::new();
 
     // test graph:
@@ -69,7 +69,7 @@ pub(crate) fn create_graph() -> Box<GameWorld> {
     ]);
 
     println!("{:?}", deps);
-    return Box::new(GameWorld {
+    return GameWorld {
         graph: deps
-    })
+    }
 }
