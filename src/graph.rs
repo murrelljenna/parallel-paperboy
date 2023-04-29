@@ -4,8 +4,8 @@ use bevy::math::*;
 use bevy::prelude::*;
 
 #[derive(Component, Debug, Clone)]
-struct RoadNode {
-    pos: Vec2
+pub(crate) struct RoadNode {
+    pub pos: Vec2
 }
 
 impl RoadNode {
@@ -23,7 +23,7 @@ impl Default for RoadNode {
 
 #[derive(Resource, Clone)]
 pub(crate) struct GameWorld {
-    graph: Graph::<RoadNode, i32>
+    pub graph: Graph::<RoadNode, i32>
 }
 
 pub(crate) fn create_graph() -> GameWorld {

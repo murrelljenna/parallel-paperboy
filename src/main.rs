@@ -174,13 +174,13 @@ impl WallBundle {
     }
 }
 
+const SCALEUP_FACTOR: f32 = 40. as f32;
+const ROAD_THICKNESS: f32 = 20. as f32;
+
 fn setup_drawing_map(
     mut commands: Commands,
     map: Res<graph::GameWorld>
 ) {
-    //for_each!(edge in *map.graph.edges() {
-    // maybe a way to iterate over the edges?
-    //})
 
     // Camera
     commands.spawn(Camera2dBundle::default());
@@ -196,100 +196,42 @@ fn setup_drawing_map(
 
     assert!(total_width_of_map > 0.0);
     assert!(total_height_of_map > 0.0);
+    println!("width of map: {:?}", total_width_of_map);
+    println!("height of map: {:?}", total_height_of_map);
 
-    // Given the space available, compute how many rows and columns of bricks we can fit
-    let n_columns = (total_width_of_map / (HOUSE_SIZE.x + GAP_BETWEEN_HOUSES)).floor() as usize;
-    let n_rows = (total_height_of_map / (HOUSE_SIZE.y + GAP_BETWEEN_HOUSES)).floor() as usize;
 
-    assert!(n_columns > 0);
-    assert!(n_rows > 0);
+    for edge_index in map.graph.edge_indices() {
+      println!("edge: {:?}", edge_index);
+      if let Some(endpoints) = map.graph.edge_endpoints(edge_index) {
+        let (start_index, end_index) = endpoints;
+        let start_pos = map.graph.node_weight(start_index).unwrap().pos;
+        let end_pos = map.graph.node_weight(end_index).unwrap().pos;
+        println!("start_pos: {:?}", start_pos);
+        println!("end_pos: {:?}", end_pos);
+        let offset = Vec2::new(total_width_of_map/4., total_height_of_map/2.);
+        let road_position = Vec2::new(
+            (start_pos.x*SCALEUP_FACTOR+end_pos.x*SCALEUP_FACTOR)/2.-offset.x,
+            (start_pos.y*SCALEUP_FACTOR+end_pos.y*SCALEUP_FACTOR)/2.);
+        println!("road_position: {:?}", road_position);
 
-    // Because we need to round the number of columns,
-    // the space on the top and sides of the bricks only captures a lower bound, not an exact value
-    let horizontal_center_of_map = (LEFT_WALL + RIGHT_WALL) / 2.0;
-    let left_edge_of_houses = horizontal_center_of_map
-        // Space taken up by the bricks
-        - (n_columns as f32 / 2.0 * HOUSE_SIZE.x)
-        // Space taken up by the gaps
-        - (n_columns - 1) as f32 / 2.0 * GAP_BETWEEN_HOUSES;
-
-    let vertical_center_of_map = (TOP_WALL + BOTTOM_WALL) / 2.0;
-    let bottom_edge_of_houses = vertical_center_of_map
-        // Space taken up by the bricks
-        - (n_rows as f32 / 2.0 * HOUSE_SIZE.y)
-        // Space taken up by the gaps
-        - (n_rows - 1) as f32 / 2.0 * GAP_BETWEEN_HOUSES;
-
-    // In Bevy, the `translation` of an entity describes the center point,
-    // not its bottom-left corner
-    let offset_x = left_edge_of_houses + HOUSE_SIZE.x / 2.;
-    let offset_y = bottom_edge_of_houses + HOUSE_SIZE.y / 2.;
-
-    for row in 0..n_rows {
-        for column in 0..n_columns {
-            let house_position = Vec2::new(
-                offset_x + column as f32 * (HOUSE_SIZE.x + GAP_BETWEEN_HOUSES),
-                offset_y + row as f32 * (HOUSE_SIZE.y + GAP_BETWEEN_HOUSES),
-            );
-
-            commands.spawn((
-                SpriteBundle {
-                    sprite: Sprite {
-                        color: HOUSE_COLOR,
-                        ..default()
-                    },
-                    transform: Transform {
-                        translation: house_position.extend(0.0),
-                        scale: Vec3::new(HOUSE_SIZE.x, HOUSE_SIZE.y, 1.0),
-                        ..default()
-                    },
+        let road_scale = Vec3::new((start_pos.x*SCALEUP_FACTOR-end_pos.x*SCALEUP_FACTOR+ROAD_THICKNESS), (start_pos.y*SCALEUP_FACTOR-end_pos.y*SCALEUP_FACTOR+ROAD_THICKNESS), 1.0);
+        println!("road_scale: {:?}", road_scale);
+        commands.spawn((
+            SpriteBundle {
+                sprite: Sprite {
+                    color: ROAD_COLOR,
                     ..default()
                 },
-                House,
-                Collider,
-            ));
-        }
-    }
-
-    for row in 0..n_rows - 1 {
-        for column in 0..n_columns - 1 {
-            let road_position = Vec2::new(
-                offset_x + 37.5 + column as f32 * (HOUSE_SIZE.x + GAP_BETWEEN_HOUSE_AND_ROAD),
-                offset_y + 37.5 + row as f32 * (HOUSE_SIZE.y + GAP_BETWEEN_HOUSE_AND_ROAD),
-            );
-
-            commands.spawn((
-                SpriteBundle {
-                    sprite: Sprite {
-                        color: ROAD_COLOR,
-                        ..default()
-                    },
-                    transform: Transform {
-                        translation: road_position.extend(0.0),
-                        scale: Vec3::new(HORIZONTAL_ROAD_SIZE.x, HORIZONTAL_ROAD_SIZE.y, 1.0),
-                        ..default()
-                    },
+                transform: Transform {
+                    translation: road_position.extend(0.0),
+                    scale: road_scale,
                     ..default()
                 },
-                Road,
-                Collider,
-            ));
-            commands.spawn((
-                SpriteBundle {
-                    sprite: Sprite {
-                        color: ROAD_COLOR,
-                        ..default()
-                    },
-                    transform: Transform {
-                        translation: road_position.extend(0.0),
-                        scale: Vec3::new(VERTICAL_ROAD_SIZE.x, VERTICAL_ROAD_SIZE.y, 1.0),
-                        ..default()
-                    },
-                    ..default()
-                },
-                Road,
-                Collider,
-            ));
-        }
+                ..default()
+            },
+            Road,
+            Collider,
+        ));
+      }
     }
 }
