@@ -10,6 +10,9 @@ const BOTTOM_WALL: f32 = -300.;
 const TOP_WALL: f32 = 300.;
 
 const HOUSE_SIZE: Vec2 = Vec2::new(10., 10.);
+const HORIZONTAL_ROAD_SIZE: Vec2 = Vec2::new(100., 10.);
+const VERTICAL_ROAD_SIZE: Vec2 = Vec2::new(10., 100.);
+const GAP_BETWEEN_HOUSE_AND_ROAD: f32 = 60.;
 
 const GAP_BETWEEN_HOUSES: f32 = 60.0;
 const GAP_BETWEEN_HOUSES_AND_CEILING: f32 = 10.0;
@@ -17,12 +20,12 @@ const GAP_BETWEEN_HOUSES_AND_SIDES: f32 = 20.0;
 
 const BACKGROUND_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 const ROAD_COLOR: Color = Color::rgb(0., 0., 0.);
-const PATH_COLOR: Color = Color::rgb(1.0, 0.2, 0.2);
-const PAPERBOY_COLOR: Color = Color::rgb(0.2, 0.2, 1.0);
-const PAPERBOY_HIGHLIGHT_COLOR: Color = Color::rgb(0.2, 0.9, 0.2);
-const TEXT_COLOR: Color = Color::rgb(0., 0., 0.);
+//const PATH_COLOR: Color = Color::rgb(1.0, 0.2, 0.2);
+//const PAPERBOY_COLOR: Color = Color::rgb(0.2, 0.2, 1.0);
+//const PAPERBOY_HIGHLIGHT_COLOR: Color = Color::rgb(0.2, 0.9, 0.2);
+//const TEXT_COLOR: Color = Color::rgb(0., 0., 0.);
 const HOUSE_COLOR: Color = Color::rgb(0.84, 0.13, 0.13);
-const ORIGIN_COLOR: Color = Color::rgb(0., 0., 0.);
+//const ORIGIN_COLOR: Color = Color::rgb(0., 0., 0.);
 const WALL_COLOR: Color = Color::rgb(0., 0., 0.);
 
 #[derive(Component, Debug)]
@@ -32,23 +35,31 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .insert_resource(ClearColor(BACKGROUND_COLOR))
-        .add_system(setup_drawing_map)
+        .add_startup_system(setup_drawing_map)
         .add_startup_system(add_potential_destinations)
         .add_system(activate_new_destination)
-        //.add_startup_system(add_people)
-        //.add_system(hello_world)
-        //.add_system(greet_people)
         .add_system(bevy::window::close_on_esc)
         .run();
 }
 
-
-
 fn add_potential_destinations(mut commands: Commands) {
     commands.spawn(
         Destination(false)
-    ).insert(Transform::from_xyz(1f32, 1f32, 0f32));
+    ).insert(Transform::from_xyz(1., 1., 0.));
 }
+
+// Make this run on a clock
+// Make this pick one at random
+// Add random variation to clock
+
+fn activate_new_destination(mut query: Query<&mut Destination, With<Transform>>) {
+    for mut destination in query.iter_mut() {
+        destination.0 = true;
+        println!("{:?}", destination)
+    }
+}
+
+
 
 #[derive(Component)]
 struct Collider;
@@ -139,9 +150,6 @@ impl WallBundle {
 
 fn setup_drawing_map(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    asset_server: Res<AssetServer>,
 ) {
     // Camera
     commands.spawn(Camera2dBundle::default());
@@ -193,7 +201,6 @@ fn setup_drawing_map(
                 offset_y + row as f32 * (HOUSE_SIZE.y + GAP_BETWEEN_HOUSES),
             );
 
-            // brick
             commands.spawn((
                 SpriteBundle {
                     sprite: Sprite {
@@ -212,20 +219,46 @@ fn setup_drawing_map(
             ));
         }
     }
-}
 
+    for row in 0..n_rows - 1 {
+        for column in 0..n_columns - 1 {
+            let road_position = Vec2::new(
+                offset_x + 37.5 + column as f32 * (HOUSE_SIZE.x + GAP_BETWEEN_HOUSE_AND_ROAD),
+                offset_y + 37.5 + row as f32 * (HOUSE_SIZE.y + GAP_BETWEEN_HOUSE_AND_ROAD),
+            );
 
-fn hello_world() {
-    println!("hello world!");
-}
-
-// Make this run on a clock
-// Make this pick one at random
-// Add random variation to clock
-
-fn activate_new_destination(mut query: Query<&mut Destination, With<Transform>>) {
-    for mut destination in query.iter_mut() {
-        destination.0 = true;
-        println!("{:?}", destination)
+            commands.spawn((
+                SpriteBundle {
+                    sprite: Sprite {
+                        color: ROAD_COLOR,
+                        ..default()
+                    },
+                    transform: Transform {
+                        translation: road_position.extend(0.0),
+                        scale: Vec3::new(HORIZONTAL_ROAD_SIZE.x, HORIZONTAL_ROAD_SIZE.y, 1.0),
+                        ..default()
+                    },
+                    ..default()
+                },
+                Road,
+                Collider,
+            ));
+            commands.spawn((
+                SpriteBundle {
+                    sprite: Sprite {
+                        color: ROAD_COLOR,
+                        ..default()
+                    },
+                    transform: Transform {
+                        translation: road_position.extend(0.0),
+                        scale: Vec3::new(VERTICAL_ROAD_SIZE.x, VERTICAL_ROAD_SIZE.y, 1.0),
+                        ..default()
+                    },
+                    ..default()
+                },
+                Road,
+                Collider,
+            ));
+        }
     }
 }
