@@ -36,9 +36,9 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .insert_resource(ClearColor(BACKGROUND_COLOR))
+        .insert_resource::<graph::GameWorld>(graph::create_graph())
         .add_startup_system(setup_drawing_map)
         .add_startup_system(add_potential_destinations)
-        .add_startup_system(graph::create_graph)
         .add_system(activate_new_destination)
         .add_system(bevy::window::close_on_esc)
         .run();
