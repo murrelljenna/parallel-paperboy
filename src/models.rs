@@ -1,4 +1,3 @@
-struct Destination(Vec2);
 struct Path(Vec<Vec2>);
 
 

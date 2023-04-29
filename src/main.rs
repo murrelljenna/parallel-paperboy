@@ -1,32 +1,30 @@
 use bevy::prelude::*;
+use bevy::math::*;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_startup_system(add_people)
-        .add_system(hello_world)
-        .add_system(greet_people)
+        .add_startup_system(add_potential_destinations)
+        .add_system(activate_new_destination)
         .run();
 }
 
-fn hello_world() {
-    println!("hello world!");
+#[derive(Component, Debug)]
+struct Destination(bool);
+
+fn add_potential_destinations(mut commands: Commands) {
+    commands.spawn(
+        Destination(false)
+    ).insert(Transform::from_xyz(1f32, 1f32, 0f32));
 }
 
-#[derive(Component)]
-struct Person;
+// Make this run on a clock
+// Make this pick one at random
+// Add random variation to clock
 
-#[derive(Component)]
-struct Name(String);
-
-fn add_people(mut commands: Commands) {
-    commands.spawn((Person, Name("Elaina Proctor".to_string())));
-    commands.spawn((Person, Name("Renzo Hume".to_string())));
-    commands.spawn((Person, Name("Zayna Nieves".to_string())));
-}
-
-fn greet_people(query: Query<&Name, With<Person>>) {
-    for name in &query {
-        println!("hello {}!", name.0);
+fn activate_new_destination(mut query: Query<&mut Destination, With<Transform>>) {
+    for mut destination in query.iter_mut() {
+        destination.0 = true;
+        println!("{:?}", destination)
     }
 }
