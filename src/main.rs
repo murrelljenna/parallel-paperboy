@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::math::*;
+mod graph;
 
 const WALL_THICKNESS: f32 = 10.0;
 // x coordinates
@@ -37,6 +38,7 @@ fn main() {
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .add_startup_system(setup_drawing_map)
         .add_startup_system(add_potential_destinations)
+        .add_startup_system(graph::create_graph)
         .add_system(activate_new_destination)
         .add_system(bevy::window::close_on_esc)
         .run();
