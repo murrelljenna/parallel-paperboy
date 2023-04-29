@@ -1,5 +1,7 @@
+use std::time::Duration;
 use bevy::prelude::*;
 use bevy::math::*;
+use rand::Rng;
 mod graph;
 
 const WALL_THICKNESS: f32 = 10.0;
@@ -32,36 +34,58 @@ const WALL_COLOR: Color = Color::rgb(0., 0., 0.);
 #[derive(Component, Debug)]
 struct Destination(bool);
 
+#[derive(Resource)]
+struct NewDeliveryTimer(Timer);
+
+const BASE_TIMER: f32 = 10.0;
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .insert_resource::<graph::GameWorld>(graph::create_graph())
+        .insert_resource(NewDeliveryTimer(Timer::from_seconds(BASE_TIMER, TimerMode::Repeating)))
         .add_startup_system(setup_drawing_map)
-        .add_startup_system(add_potential_destinations)
         .add_system(activate_new_destination)
         .add_system(bevy::window::close_on_esc)
         .run();
 }
 
-fn add_potential_destinations(mut commands: Commands) {
-    commands.spawn(
-        Destination(false)
-    ).insert(Transform::from_xyz(1., 1., 0.));
+fn random_position() -> Vec2 {
+    let xPosOrNeg: f32 = rand::thread_rng().gen();
+    let yPosOrNeg: f32 = rand::thread_rng().gen();
+    let xRng: f32 = rand::thread_rng().gen();
+    let yRng: f32 = rand::thread_rng().gen();
+
+    let mut x: f32;
+    let mut y: f32;
+
+    if (xPosOrNeg > 0.5) {
+        x = xRng * 10f32;
+    } else {
+        x = xRng * -10f32;
+    }
+
+    if (yPosOrNeg > 0.5) {
+        y = yRng * 10f32;
+    } else {
+        y = yRng * -10f32;
+    }
+
+    return Vec2::new(x, y)
 }
 
-// Make this run on a clock
-// Make this pick one at random
-// Add random variation to clock
-
-fn activate_new_destination(mut query: Query<&mut Destination, With<Transform>>) {
-    for mut destination in query.iter_mut() {
-        destination.0 = true;
-        println!("{:?}", destination)
+fn activate_new_destination(
+    time: Res<Time>, mut timer: ResMut<NewDeliveryTimer>) {
+    // update our timer with the time elapsed since the last update
+    // if that caused the timer to finish, we say hello to everyone
+    if timer.0.tick(time.delta()).just_finished() {
+        let x: f32 = rand::thread_rng().gen();
+        let new_duration = Duration::from_secs_f32(BASE_TIMER * (x * 2.));
+        timer.0.set_duration(new_duration);
+        println!("hello {}!", random_position());
     }
 }
-
-
 
 #[derive(Component)]
 struct Collider;
