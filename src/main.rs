@@ -152,7 +152,12 @@ impl WallBundle {
 
 fn setup_drawing_map(
     mut commands: Commands,
+    map: Res<graph::GameWorld>
 ) {
+    //for_each!(edge in *map.graph.edges() {
+    // maybe a way to iterate over the edges?
+    //})
+
     // Camera
     commands.spawn(Camera2dBundle::default());
 
