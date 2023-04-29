@@ -21,8 +21,13 @@ impl Default for RoadNode {
     fn default() -> RoadNode { RoadNode::from_xy(0., 0.) }
 }
 
-pub(crate) fn create_graph() {
-    let mut deps = Graph::<RoadNode, &str>::new();
+#[derive(Resource)]
+pub(crate) struct GameWorld {
+    graph: Graph::<RoadNode, i32>
+}
+
+pub(crate) fn create_graph() -> Box<GameWorld> {
+    let mut deps = Graph::<RoadNode, i32>::new();
 
     // test graph:
     // A--------G
@@ -64,4 +69,7 @@ pub(crate) fn create_graph() {
     ]);
 
     println!("{:?}", deps);
+    return Box::new(GameWorld {
+        graph: deps
+    })
 }
