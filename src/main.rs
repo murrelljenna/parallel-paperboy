@@ -1,8 +1,6 @@
 use bevy::prelude::*;
 use bevy::math::*;
 
-const GAP_BETWEEN_PADDLE_AND_FLOOR: f32 = 0.0;
-
 const WALL_THICKNESS: f32 = 10.0;
 // x coordinates
 const LEFT_WALL: f32 = -450.;
@@ -10,13 +8,12 @@ const RIGHT_WALL: f32 = 450.;
 // y coordinates
 const BOTTOM_WALL: f32 = -300.;
 const TOP_WALL: f32 = 300.;
-const BRICK_SIZE: Vec2 = Vec2::new(10., 10.);
-// These values are exact
-const GAP_BETWEEN_PADDLE_AND_BRICKS: f32 = 20.0;
-const GAP_BETWEEN_BRICKS: f32 = 60.0;
-// These values are lower bounds, as the number of bricks is computed
-const GAP_BETWEEN_BRICKS_AND_CEILING: f32 = 15.0;
-const GAP_BETWEEN_BRICKS_AND_SIDES: f32 = 20.0;
+
+const HOUSE_SIZE: Vec2 = Vec2::new(10., 10.);
+
+const GAP_BETWEEN_HOUSES: f32 = 60.0;
+const GAP_BETWEEN_HOUSES_AND_CEILING: f32 = 10.0;
+const GAP_BETWEEN_HOUSES_AND_SIDES: f32 = 20.0;
 
 const BACKGROUND_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 const ROAD_COLOR: Color = Color::rgb(0., 0., 0.);
@@ -24,7 +21,7 @@ const PATH_COLOR: Color = Color::rgb(1.0, 0.2, 0.2);
 const PAPERBOY_COLOR: Color = Color::rgb(0.2, 0.2, 1.0);
 const PAPERBOY_HIGHLIGHT_COLOR: Color = Color::rgb(0.2, 0.9, 0.2);
 const TEXT_COLOR: Color = Color::rgb(0., 0., 0.);
-const HOUSE_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
+const HOUSE_COLOR: Color = Color::rgb(0.84, 0.13, 0.13);
 const ORIGIN_COLOR: Color = Color::rgb(0., 0., 0.);
 const WALL_COLOR: Color = Color::rgb(0., 0., 0.);
 
@@ -149,52 +146,51 @@ fn setup_drawing_map(
     // Camera
     commands.spawn(Camera2dBundle::default());
 
-    // Paddle
-    let paddle_y = BOTTOM_WALL + GAP_BETWEEN_PADDLE_AND_FLOOR;
-
     // Walls
     commands.spawn(WallBundle::new(WallLocation::Left));
     commands.spawn(WallBundle::new(WallLocation::Right));
     commands.spawn(WallBundle::new(WallLocation::Bottom));
     commands.spawn(WallBundle::new(WallLocation::Top));
 
-    // Bricks
-    // Negative scales result in flipped sprites / meshes,
-    // which is definitely not what we want here
-    assert!(BRICK_SIZE.x > 0.0);
-    assert!(BRICK_SIZE.y > 0.0);
+    let total_width_of_map = (RIGHT_WALL - LEFT_WALL) - 2. * GAP_BETWEEN_HOUSES_AND_SIDES;
+    let total_height_of_map = (TOP_WALL - BOTTOM_WALL) - 2. * GAP_BETWEEN_HOUSES_AND_CEILING;
 
-    let total_width_of_bricks = (RIGHT_WALL - LEFT_WALL) - 2. * GAP_BETWEEN_BRICKS_AND_SIDES;
-    let bottom_edge_of_bricks = paddle_y + GAP_BETWEEN_PADDLE_AND_BRICKS;
-    let total_height_of_bricks = TOP_WALL - bottom_edge_of_bricks - GAP_BETWEEN_BRICKS_AND_CEILING;
-
-    assert!(total_width_of_bricks > 0.0);
-    assert!(total_height_of_bricks > 0.0);
+    assert!(total_width_of_map > 0.0);
+    assert!(total_height_of_map > 0.0);
 
     // Given the space available, compute how many rows and columns of bricks we can fit
-    let n_columns = (total_width_of_bricks / (BRICK_SIZE.x + GAP_BETWEEN_BRICKS)).floor() as usize;
-    let n_rows = (total_height_of_bricks / (BRICK_SIZE.y + GAP_BETWEEN_BRICKS)).floor() as usize;
-    let n_vertical_gaps = n_columns - 1;
+    let n_columns = (total_width_of_map / (HOUSE_SIZE.x + GAP_BETWEEN_HOUSES)).floor() as usize;
+    let n_rows = (total_height_of_map / (HOUSE_SIZE.y + GAP_BETWEEN_HOUSES)).floor() as usize;
+
+    assert!(n_columns > 0);
+    assert!(n_rows > 0);
 
     // Because we need to round the number of columns,
     // the space on the top and sides of the bricks only captures a lower bound, not an exact value
-    let center_of_bricks = (LEFT_WALL + RIGHT_WALL) / 2.0;
-    let left_edge_of_bricks = center_of_bricks
+    let horizontal_center_of_map = (LEFT_WALL + RIGHT_WALL) / 2.0;
+    let left_edge_of_houses = horizontal_center_of_map
         // Space taken up by the bricks
-        - (n_columns as f32 / 2.0 * BRICK_SIZE.x)
+        - (n_columns as f32 / 2.0 * HOUSE_SIZE.x)
         // Space taken up by the gaps
-        - n_vertical_gaps as f32 / 2.0 * GAP_BETWEEN_BRICKS;
+        - (n_columns - 1) as f32 / 2.0 * GAP_BETWEEN_HOUSES;
+
+    let vertical_center_of_map = (TOP_WALL + BOTTOM_WALL) / 2.0;
+    let bottom_edge_of_houses = vertical_center_of_map
+        // Space taken up by the bricks
+        - (n_rows as f32 / 2.0 * HOUSE_SIZE.y)
+        // Space taken up by the gaps
+        - (n_rows - 1) as f32 / 2.0 * GAP_BETWEEN_HOUSES;
 
     // In Bevy, the `translation` of an entity describes the center point,
     // not its bottom-left corner
-    let offset_x = left_edge_of_bricks + BRICK_SIZE.x / 2.;
-    let offset_y = bottom_edge_of_bricks + BRICK_SIZE.y / 2.;
+    let offset_x = left_edge_of_houses + HOUSE_SIZE.x / 2.;
+    let offset_y = bottom_edge_of_houses + HOUSE_SIZE.y / 2.;
 
     for row in 0..n_rows {
         for column in 0..n_columns {
-            let brick_position = Vec2::new(
-                offset_x + column as f32 * (BRICK_SIZE.x + GAP_BETWEEN_BRICKS),
-                offset_y + row as f32 * (BRICK_SIZE.y + GAP_BETWEEN_BRICKS),
+            let house_position = Vec2::new(
+                offset_x + column as f32 * (HOUSE_SIZE.x + GAP_BETWEEN_HOUSES),
+                offset_y + row as f32 * (HOUSE_SIZE.y + GAP_BETWEEN_HOUSES),
             );
 
             // brick
@@ -205,8 +201,8 @@ fn setup_drawing_map(
                         ..default()
                     },
                     transform: Transform {
-                        translation: brick_position.extend(0.0),
-                        scale: Vec3::new(BRICK_SIZE.x, BRICK_SIZE.y, 1.0),
+                        translation: house_position.extend(0.0),
+                        scale: Vec3::new(HOUSE_SIZE.x, HOUSE_SIZE.y, 1.0),
                         ..default()
                     },
                     ..default()
