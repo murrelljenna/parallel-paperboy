@@ -44,6 +44,7 @@ fn main() {
         .insert_resource(NewDeliveryTimer(Timer::from_seconds(BASE_TIMER, TimerMode::Repeating)))
         .add_startup_system(setup_drawing_map)
         .add_system(activate_new_destination)
+        .add_system(delivery_command)
         .add_system(mouse_button_events)
         .add_system(bevy::window::close_on_esc)
         .run();
@@ -222,6 +223,17 @@ fn mouse_button_events(
             ButtonState::Released => {
                 println!("Mouse button release: {:?}", ev.button);
             }
+        }
+    }
+}
+
+fn delivery_command(
+    keys: Res<Input<KeyCode>>,
+    paperboy_transform: Query<&Transform, With<Paperboy>>,
+) {
+    if keys.just_pressed(KeyCode::Space) {
+        for transform in &paperboy_transform {
+            println!("space pressed, paperboy at {:?}", transform);
         }
     }
 }
