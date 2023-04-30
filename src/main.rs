@@ -117,8 +117,27 @@ struct House;
 #[derive(Component)]
 struct Road;
 
-#[derive(Component)]
-struct Path;
+#[derive(Component, Debug)]
+struct Path {
+    points: Vec<Vec2>,
+}
+
+impl Path {
+    fn new() -> Path {
+        Path { points: vec![] }
+    }
+}
+
+// #[derive(Component, Debug)]
+// struct PathHolder {
+//     paths: Vec<Path>,
+// }
+
+// impl PathHolder {
+//     fn new() -> PathHolder {
+//         PathHolder { paths: vec![] }
+//     }
+// }
 
 // This bundle is a collection of the components that define a "wall" in our game
 #[derive(Bundle)]
@@ -204,6 +223,7 @@ fn mouse_button_place_path(
     // query to get camera transform
     camera_q: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     ui_state: Query<&UIState>,
+    mut paths: Query<&mut Path>,
     mut mousebtn_evr: EventReader<MouseButtonInput>,
 ) {
     if ui_state.single().selection_mode != SelectionMode::PlacingPath {
@@ -237,6 +257,10 @@ fn mouse_button_place_path(
                     .map(|ray| ray.origin.truncate())
                 {
                     eprintln!("World coords: {}/{}", world_position.x, world_position.y);
+                    for mut path in &mut paths {
+                        path.points.push(Vec2::new(world_position.x, world_position.y));
+                        println!("path points: {:?}", path.points);
+                    }
                 }
             },
             ButtonState::Released => {
@@ -303,7 +327,8 @@ fn mouse_button_place_paperboy(
 fn delivery_command(
     keys: Res<Input<KeyCode>>,
     paperboy_transform: Query<&Transform, With<Paperboy>>,
-    mut ui_states: Query<&mut UIState>
+    mut ui_states: Query<&mut UIState>,
+    mut paths: Query<&mut Path>,
 ) {
     if keys.just_pressed(KeyCode::Space) {
         for transform in &paperboy_transform {
@@ -318,13 +343,26 @@ fn delivery_command(
                 SelectionMode::Paused => SelectionMode::Paused
             }
         }
+    } else if keys.just_pressed(KeyCode::Q) {
+        println!("q pressed, paths is {:?}", paths.single().points);
+        for mut path in &mut paths {
+            // for entity in path.entities {
+            //     commands.entity(entity).despawn()
+            // }
+            path.points.clear();
+        }
+        println!("paths emptied, paths is now {:?}", paths.single().points);
     }
 }
+
 
 fn setup_drawing_map(
     mut commands: Commands,
     map: Res<graph::GameWorld>
 ) {
+    // Path holder
+    commands.spawn(Path::new());
+
     // UIState
     commands.spawn(UIState::new());
 
