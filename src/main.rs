@@ -23,7 +23,7 @@ const PAPERBOY_SIZE: Vec2 = Vec2::new(10., 10.);
 
 const BACKGROUND_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 const ROAD_COLOR: Color = Color::rgb(0., 0., 0.);
-//const PATH_COLOR: Color = Color::rgb(1.0, 0.2, 0.2);
+const PATH_COLOR: Color = Color::rgb(1.0, 0.2, 0.2);
 const PAPERBOY_COLOR: Color = Color::rgb(0.2, 0.2, 1.0);
 //const PAPERBOY_HIGHLIGHT_COLOR: Color = Color::rgb(0.2, 0.9, 0.2);
 //const TEXT_COLOR: Color = Color::rgb(0., 0., 0.);
@@ -124,13 +124,17 @@ struct Road;
 #[derive(Component, Debug)]
 struct Path {
     points: Vec<Vec2>,
+    entities: Vec<Entity>,
 }
 
 impl Path {
     fn new() -> Path {
-        Path { points: vec![] }
+        Path { points: vec![], entities: vec![] }
     }
 }
+
+#[derive(Component, Debug)]
+struct PathSegment;
 
 // #[derive(Component, Debug)]
 // struct PathHolder {
@@ -223,6 +227,7 @@ const ROAD_THICKNESS: f32 = 20. as f32;
 struct MainCamera;
 
 fn mouse_button_place_path(
+    mut commands: Commands,
     windows: Query<&Window, With<PrimaryWindow>>,
     // query to get camera transform
     camera_q: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
@@ -262,6 +267,40 @@ fn mouse_button_place_path(
                 {
                     eprintln!("World coords: {}/{}", world_position.x, world_position.y);
                     for mut path in &mut paths {
+                        let len = path.points.len();
+                        if len >= 1 {
+                            let path_position = Vec2::new((path.points[len-1].x+world_position.x)/2., (path.points[len-1].y+world_position.y)/2.);
+                            let xlen = path.points[len-1].x-world_position.x;
+                            let ylen = path.points[len-1].y-world_position.y;
+                            let pythagorean_len = (xlen*xlen+ylen*ylen).sqrt();
+                            let path_scale = Vec2::new(pythagorean_len, ROAD_THICKNESS);
+                            let path_sides_ratio = (path.points[len-1].y-world_position.y).atan2(
+                                    path.points[len-1].x-world_position.x
+                            );
+                            println!("path.points[len-1]: {:?}", path.points[len-1]);
+                            println!("path position: {:?}", path_position);
+                            println!("path scale: {:?}", path_scale);
+                            println!("path sides ratio: {:?}", path_sides_ratio);
+                            path.entities.push(
+                                commands.spawn((
+                                    SpriteBundle {
+                                        sprite: Sprite {
+                                            color: PATH_COLOR,
+                                            ..default()
+                                        },
+                                        transform: Transform {
+                                            translation: path_position.extend(0.0),
+                                            scale: path_scale.extend(0.0),
+                                            rotation: Quat::from_rotation_z(path_sides_ratio),
+                                            ..default()
+                                        },
+                                        ..default()
+                                    },
+                                    PathSegment,
+                                    Collider,
+                                )).id()
+                            );
+                        }
                         path.points.push(Vec2::new(world_position.x, world_position.y));
                         println!("path points: {:?}", path.points);
                     }
@@ -329,6 +368,7 @@ fn mouse_button_place_paperboy(
 }
 
 fn delivery_command(
+    mut commands: Commands,
     keys: Res<Input<KeyCode>>,
     paperboy_transform: Query<&Transform, With<Paperboy>>,
     mut ui_states: Query<&mut UIState>,
@@ -350,10 +390,11 @@ fn delivery_command(
     } else if keys.just_pressed(KeyCode::Q) {
         println!("q pressed, paths is {:?}", paths.single().points);
         for mut path in &mut paths {
-            // for entity in path.entities {
-            //     commands.entity(entity).despawn()
-            // }
+            for entity in &path.entities {
+                commands.entity(*entity).despawn()
+            }
             path.points.clear();
+            path.entities.clear();
         }
         println!("paths emptied, paths is now {:?}", paths.single().points);
     }
