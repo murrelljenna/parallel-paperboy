@@ -86,6 +86,24 @@ fn activate_new_destination(
     }
 }
 
+#[derive(Debug)]
+enum SelectionMode {
+    PlacingPaperboy,
+    PlacingPath,
+    Paused,
+}
+
+#[derive(Component)]
+struct UIState {
+    selection_mode: SelectionMode,
+}
+
+impl UIState {
+    fn new() -> UIState {
+        UIState { selection_mode: SelectionMode::PlacingPaperboy }
+    }
+}
+
 #[derive(Component)]
 struct Collider;
 
@@ -230,10 +248,20 @@ fn mouse_button_events(
 fn delivery_command(
     keys: Res<Input<KeyCode>>,
     paperboy_transform: Query<&Transform, With<Paperboy>>,
+    mut ui_states: Query<&mut UIState>
 ) {
     if keys.just_pressed(KeyCode::Space) {
         for transform in &paperboy_transform {
             println!("space pressed, paperboy at {:?}", transform);
+        }
+    } else if keys.just_pressed(KeyCode::Tab) {
+        println!("tab pressed, UI state is {:?}", ui_states.single().selection_mode);
+        for mut ui_state in &mut ui_states {
+            ui_state.selection_mode =  match ui_state.selection_mode {
+                SelectionMode::PlacingPaperboy => SelectionMode::PlacingPath,
+                SelectionMode::PlacingPath => SelectionMode::PlacingPaperboy,
+                SelectionMode::Paused => SelectionMode::Paused
+            }
         }
     }
 }
@@ -242,6 +270,8 @@ fn setup_drawing_map(
     mut commands: Commands,
     map: Res<graph::GameWorld>
 ) {
+    // UIState
+    commands.spawn(UIState::new());
 
     // Camera
     commands.spawn((Camera2dBundle::default(), MainCamera));
