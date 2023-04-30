@@ -45,7 +45,8 @@ fn main() {
         .add_startup_system(setup_drawing_map)
         .add_system(activate_new_destination)
         .add_system(delivery_command)
-        .add_system(mouse_button_events)
+        .add_system(mouse_button_place_paperboy)
+        .add_system(mouse_button_place_path)
         .add_system(bevy::window::close_on_esc)
         .run();
 }
@@ -86,7 +87,7 @@ fn activate_new_destination(
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum SelectionMode {
     PlacingPaperboy,
     PlacingPath,
@@ -198,14 +199,18 @@ const ROAD_THICKNESS: f32 = 20. as f32;
 #[derive(Component)]
 struct MainCamera;
 
-fn mouse_button_events(
-    // need to get window dimensions
+fn mouse_button_place_path(
     windows: Query<&Window, With<PrimaryWindow>>,
     // query to get camera transform
     camera_q: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-    mut paperboy_transform: Query<&mut Transform, With<Paperboy>>,
+    ui_state: Query<&UIState>,
     mut mousebtn_evr: EventReader<MouseButtonInput>,
 ) {
+    if ui_state.single().selection_mode != SelectionMode::PlacingPath {
+        // this method doesn't run in that mode
+        return
+    }
+
     use bevy::input::ButtonState;
 
     // get the camera info and transform
@@ -222,6 +227,56 @@ fn mouse_button_events(
     for ev in mousebtn_evr.iter() {
         match ev.state {
             ButtonState::Pressed => {
+                println!("placing path!!!!");
+                println!("Mouse button press: {:?}", ev.button);
+                println!("Mouse button state: {:?}", ev.state);
+                // check if the cursor is inside the window and get its position
+                // then, ask bevy to convert into world coordinates, and truncate to discard Z
+                if let Some(world_position) = window.cursor_position()
+                    .and_then(|cursor| camera.viewport_to_world(camera_transform, cursor))
+                    .map(|ray| ray.origin.truncate())
+                {
+                    eprintln!("World coords: {}/{}", world_position.x, world_position.y);
+                }
+            },
+            ButtonState::Released => {
+                println!("Mouse button release (path branch): {:?}", ev.button);
+            }
+        }
+    }
+}
+
+fn mouse_button_place_paperboy(
+    // need to get window dimensions
+    windows: Query<&Window, With<PrimaryWindow>>,
+    // query to get camera transform
+    camera_q: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    mut paperboy_transform: Query<&mut Transform, With<Paperboy>>,
+    ui_state: Query<&UIState>,
+    mut mousebtn_evr: EventReader<MouseButtonInput>,
+) {
+    if ui_state.single().selection_mode != SelectionMode::PlacingPaperboy {
+        // this method doesn't run in that mode
+        return
+    }
+
+    use bevy::input::ButtonState;
+
+    // get the camera info and transform
+    // assuming there is exactly one main camera entity, so query::single() is OK
+    let (camera, camera_transform) = camera_q.single();
+
+    // get the window that the camera is displaying to (or the primary window)
+    let window = if let RenderTarget::Window(_id) = camera.target {
+        windows.single()
+    } else {
+        windows.single()
+    };
+
+    for ev in mousebtn_evr.iter() {
+        match ev.state {
+            ButtonState::Pressed => {
+                println!("placing paperboy!!!!");
                 println!("Mouse button press: {:?}", ev.button);
                 println!("Mouse button state: {:?}", ev.state);
 
@@ -239,7 +294,7 @@ fn mouse_button_events(
                 }
             }
             ButtonState::Released => {
-                println!("Mouse button release: {:?}", ev.button);
+                println!("Mouse button release (pboy branch): {:?}", ev.button);
             }
         }
     }
