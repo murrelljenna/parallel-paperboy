@@ -4,7 +4,9 @@ use bevy::math::*;
 use rand::*;
 use rand::rngs::ThreadRng;
 use rand::seq::IteratorRandom;
-
+use bevy::input::mouse::MouseButtonInput;
+use bevy::window::PrimaryWindow;
+use bevy::render::camera::RenderTarget;
 mod graph;
 mod models;
 
@@ -16,22 +18,16 @@ const RIGHT_WALL: f32 = 450.;
 const BOTTOM_WALL: f32 = -300.;
 const TOP_WALL: f32 = 300.;
 
-const HOUSE_SIZE: Vec2 = Vec2::new(10., 10.);
-const HORIZONTAL_ROAD_SIZE: Vec2 = Vec2::new(100., 10.);
-const VERTICAL_ROAD_SIZE: Vec2 = Vec2::new(10., 100.);
-const GAP_BETWEEN_HOUSE_AND_ROAD: f32 = 60.;
-
-const GAP_BETWEEN_HOUSES: f32 = 60.0;
-const GAP_BETWEEN_HOUSES_AND_CEILING: f32 = 10.0;
-const GAP_BETWEEN_HOUSES_AND_SIDES: f32 = 20.0;
+//const HOUSE_SIZE: Vec2 = Vec2::new(10., 10.);
+const PAPERBOY_SIZE: Vec2 = Vec2::new(10., 10.);
 
 const BACKGROUND_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 const ROAD_COLOR: Color = Color::rgb(0., 0., 0.);
 //const PATH_COLOR: Color = Color::rgb(1.0, 0.2, 0.2);
-//const PAPERBOY_COLOR: Color = Color::rgb(0.2, 0.2, 1.0);
+const PAPERBOY_COLOR: Color = Color::rgb(0.2, 0.2, 1.0);
 //const PAPERBOY_HIGHLIGHT_COLOR: Color = Color::rgb(0.2, 0.9, 0.2);
 //const TEXT_COLOR: Color = Color::rgb(0., 0., 0.);
-const HOUSE_COLOR: Color = Color::rgb(0.84, 0.13, 0.13);
+//const HOUSE_COLOR: Color = Color::rgb(0.84, 0.13, 0.13);
 //const ORIGIN_COLOR: Color = Color::rgb(0., 0., 0.);
 const WALL_COLOR: Color = Color::rgb(0., 0., 0.);
 
@@ -49,6 +45,8 @@ fn main() {
         .add_startup_system(setup_drawing_map)
         .add_startup_system(models::initialize_houses)
         .add_system(activate_new_destination)
+        .add_system(delivery_command)
+        .add_system(mouse_button_events)
         .add_system(bevy::window::close_on_esc)
         .run();
 }
@@ -182,13 +180,75 @@ impl WallBundle {
 const SCALEUP_FACTOR: f32 = 40. as f32;
 const ROAD_THICKNESS: f32 = 20. as f32;
 
+/// Used to help identify our main camera
+#[derive(Component)]
+struct MainCamera;
+
+fn mouse_button_events(
+    // need to get window dimensions
+    windows: Query<&Window, With<PrimaryWindow>>,
+    // query to get camera transform
+    camera_q: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
+    mut paperboy_transform: Query<&mut Transform, With<Paperboy>>,
+    mut mousebtn_evr: EventReader<MouseButtonInput>,
+) {
+    use bevy::input::ButtonState;
+
+    // get the camera info and transform
+    // assuming there is exactly one main camera entity, so query::single() is OK
+    let (camera, camera_transform) = camera_q.single();
+
+    // get the window that the camera is displaying to (or the primary window)
+    let window = if let RenderTarget::Window(_id) = camera.target {
+        windows.single()
+    } else {
+        windows.single()
+    };
+
+    for ev in mousebtn_evr.iter() {
+        match ev.state {
+            ButtonState::Pressed => {
+                println!("Mouse button press: {:?}", ev.button);
+                println!("Mouse button state: {:?}", ev.state);
+
+                // check if the cursor is inside the window and get its position
+                // then, ask bevy to convert into world coordinates, and truncate to discard Z
+                if let Some(world_position) = window.cursor_position()
+                    .and_then(|cursor| camera.viewport_to_world(camera_transform, cursor))
+                    .map(|ray| ray.origin.truncate())
+                {
+                    eprintln!("World coords: {}/{}", world_position.x, world_position.y);
+                    for mut transform in &mut paperboy_transform {
+                        transform.translation.x = world_position.x;
+                        transform.translation.y = world_position.y;
+                    }
+                }
+            }
+            ButtonState::Released => {
+                println!("Mouse button release: {:?}", ev.button);
+            }
+        }
+    }
+}
+
+fn delivery_command(
+    keys: Res<Input<KeyCode>>,
+    paperboy_transform: Query<&Transform, With<Paperboy>>,
+) {
+    if keys.just_pressed(KeyCode::Space) {
+        for transform in &paperboy_transform {
+            println!("space pressed, paperboy at {:?}", transform);
+        }
+    }
+}
+
 fn setup_drawing_map(
     mut commands: Commands,
     map: Res<graph::GameWorld>
 ) {
 
     // Camera
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn((Camera2dBundle::default(), MainCamera));
 
     // Walls
     commands.spawn(WallBundle::new(WallLocation::Left));
@@ -196,8 +256,8 @@ fn setup_drawing_map(
     commands.spawn(WallBundle::new(WallLocation::Bottom));
     commands.spawn(WallBundle::new(WallLocation::Top));
 
-    let total_width_of_map = (RIGHT_WALL - LEFT_WALL) - 2. * GAP_BETWEEN_HOUSES_AND_SIDES;
-    let total_height_of_map = (TOP_WALL - BOTTOM_WALL) - 2. * GAP_BETWEEN_HOUSES_AND_CEILING;
+    let total_width_of_map = RIGHT_WALL - LEFT_WALL;
+    let total_height_of_map = TOP_WALL - BOTTOM_WALL;
 
     assert!(total_width_of_map > 0.0);
     assert!(total_height_of_map > 0.0);
@@ -219,7 +279,7 @@ fn setup_drawing_map(
             (start_pos.y*SCALEUP_FACTOR+end_pos.y*SCALEUP_FACTOR)/2.);
         println!("road_position: {:?}", road_position);
 
-        let road_scale = Vec3::new((start_pos.x*SCALEUP_FACTOR-end_pos.x*SCALEUP_FACTOR+ROAD_THICKNESS), (start_pos.y*SCALEUP_FACTOR-end_pos.y*SCALEUP_FACTOR+ROAD_THICKNESS), 1.0);
+        let road_scale = Vec3::new(start_pos.x*SCALEUP_FACTOR-end_pos.x*SCALEUP_FACTOR+ROAD_THICKNESS, start_pos.y*SCALEUP_FACTOR-end_pos.y*SCALEUP_FACTOR+ROAD_THICKNESS, 1.0);
         println!("road_scale: {:?}", road_scale);
         commands.spawn((
             SpriteBundle {
@@ -239,4 +299,21 @@ fn setup_drawing_map(
         ));
       }
     }
+
+    commands.spawn((
+        SpriteBundle {
+            sprite: Sprite {
+                color: PAPERBOY_COLOR,
+                ..default()
+            },
+            transform: Transform {
+                translation: Vec2::new(0., 20.).extend(0.0),
+                scale: PAPERBOY_SIZE.extend(0.0),
+                ..default()
+            },
+            ..default()
+        },
+        Paperboy,
+        Collider,
+    ));
 }
