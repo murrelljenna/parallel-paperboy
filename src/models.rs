@@ -15,7 +15,8 @@ pub struct House {
     pub active: bool
 }
 
-const HOUSE_COLOR: Color = Color::rgb(0., 0., 0.);
+pub(crate) const HOUSE_COLOR: Color = Color::rgb(0., 0., 0.);
+pub(crate) const ACTIVE_HOUSE_COLOR: Color = Color::rgb(1., 0., 0.);
 
 pub fn initialize_houses(mut commands: Commands) {
     let mut HOUSE_POSITIONS: Vec<Vec2> = Vec::new();

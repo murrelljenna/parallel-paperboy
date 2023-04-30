@@ -81,7 +81,7 @@ fn random_position() -> Vec2 {
 }
 
 fn activate_new_destination(
-    time: Res<Time>, mut timer: ResMut<NewDeliveryTimer>, mut query: Query<&mut models::House, With<Transform>>) {
+    time: Res<Time>, mut timer: ResMut<NewDeliveryTimer>, mut query: Query<(&mut models::House, &mut Sprite), With<Transform>>) {
     // update our timer with the time elapsed since the last update
     // if that caused the timer to finish, we say hello to everyone
     if timer.0.tick(time.delta()).just_finished() {
@@ -90,8 +90,9 @@ fn activate_new_destination(
         let new_duration = Duration::from_secs_f32(BASE_TIMER * (x * 2.));
         timer.0.set_duration(new_duration);
 
-        if let Some(mut house) = query.iter_mut().choose(&mut rng) {
+        if let Some((mut house, mut sprite)) = query.iter_mut().choose(&mut rng) {
             house.active = true;
+            sprite.color = models::ACTIVE_HOUSE_COLOR;
         }
     }
 }
@@ -375,19 +376,20 @@ fn delivery_command(
     paperboy_transform: Query<&Transform, With<Paperboy>>,
     mut ui_states: Query<&mut UIState>,
     mut paths: Query<&mut Path>,
-    mut all_houses: Query<(&mut models::House, &Transform)>
+    mut all_houses: Query<(&mut models::House, &Transform, &mut Sprite)>
 ) {
     const PAPERBOY_REACH: f32 = 20.0;
     if keys.just_pressed(KeyCode::Space) {
         for transform in &paperboy_transform {
-            if let Some((mut house, house_transform)) = all_houses.iter_mut()
-                .filter(|(house, transform)| {
+            if let Some((mut house, house_transform, mut sprite)) = all_houses.iter_mut()
+                .filter(|(house, transform, _)| {
                 return house.active == true;
-            }).min_by_key(|(house, house_transform)| {
+            }).min_by_key(|(house, house_transform, _)| {
                 FloatOrd(Vec3::distance(house_transform.translation, transform.translation))
             }) {
                 if (Vec3::distance(house_transform.translation, transform.translation) < PAPERBOY_REACH) {
                     house.active = false;
+                    sprite.color = models::HOUSE_COLOR;
                     println!("space pressed, paperboy at {:?}, successfully delivered to a house!", transform);
                 } else {
                     println!("space pressed, paperboy at {:?}, no active house in range", transform);
