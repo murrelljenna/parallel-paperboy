@@ -1,8 +1,12 @@
 use std::time::Duration;
 use bevy::prelude::*;
 use bevy::math::*;
-use rand::Rng;
+use rand::*;
+use rand::rngs::ThreadRng;
+use rand::seq::IteratorRandom;
+
 mod graph;
+mod models;
 
 const WALL_THICKNESS: f32 = 10.0;
 // x coordinates
@@ -31,9 +35,6 @@ const HOUSE_COLOR: Color = Color::rgb(0.84, 0.13, 0.13);
 //const ORIGIN_COLOR: Color = Color::rgb(0., 0., 0.);
 const WALL_COLOR: Color = Color::rgb(0., 0., 0.);
 
-#[derive(Component, Debug)]
-struct Destination(bool);
-
 #[derive(Resource)]
 struct NewDeliveryTimer(Timer);
 
@@ -46,10 +47,13 @@ fn main() {
         .insert_resource::<graph::GameWorld>(graph::create_graph())
         .insert_resource(NewDeliveryTimer(Timer::from_seconds(BASE_TIMER, TimerMode::Repeating)))
         .add_startup_system(setup_drawing_map)
+        .add_startup_system(models::initialize_houses)
         .add_system(activate_new_destination)
         .add_system(bevy::window::close_on_esc)
         .run();
 }
+
+
 
 fn random_position() -> Vec2 {
     let xPosOrNeg: f32 = rand::thread_rng().gen();
@@ -76,14 +80,18 @@ fn random_position() -> Vec2 {
 }
 
 fn activate_new_destination(
-    time: Res<Time>, mut timer: ResMut<NewDeliveryTimer>) {
+    time: Res<Time>, mut timer: ResMut<NewDeliveryTimer>, mut query: Query<&mut models::House, With<Transform>>) {
     // update our timer with the time elapsed since the last update
     // if that caused the timer to finish, we say hello to everyone
     if timer.0.tick(time.delta()).just_finished() {
-        let x: f32 = rand::thread_rng().gen();
+        let mut rng: ThreadRng = rand::thread_rng();
+        let x: f32 = rng.gen();
         let new_duration = Duration::from_secs_f32(BASE_TIMER * (x * 2.));
         timer.0.set_duration(new_duration);
-        println!("hello {}!", random_position());
+
+        if let Some(mut house) = query.iter_mut().choose(&mut rng) {
+            house.active = true;
+        }
     }
 }
 
@@ -92,9 +100,6 @@ struct Collider;
 
 #[derive(Component)]
 struct Paperboy;
-
-#[derive(Component)]
-struct House;
 
 #[derive(Component)]
 struct Road;
