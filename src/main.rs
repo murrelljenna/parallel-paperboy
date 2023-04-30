@@ -7,6 +7,8 @@ use rand::seq::IteratorRandom;
 use bevy::input::mouse::MouseButtonInput;
 use bevy::window::PrimaryWindow;
 use bevy::render::camera::RenderTarget;
+use bevy::utils::FloatOrd;
+
 mod graph;
 mod models;
 
@@ -373,10 +375,24 @@ fn delivery_command(
     paperboy_transform: Query<&Transform, With<Paperboy>>,
     mut ui_states: Query<&mut UIState>,
     mut paths: Query<&mut Path>,
+    mut all_houses: Query<(&mut models::House, &Transform)>
 ) {
+    const PAPERBOY_REACH: f32 = 20.0;
     if keys.just_pressed(KeyCode::Space) {
         for transform in &paperboy_transform {
-            println!("space pressed, paperboy at {:?}", transform);
+            if let Some((mut house, house_transform)) = all_houses.iter_mut()
+                .filter(|(house, transform)| {
+                return house.active == true;
+            }).min_by_key(|(house, house_transform)| {
+                FloatOrd(Vec3::distance(house_transform.translation, transform.translation))
+            }) {
+                if (Vec3::distance(house_transform.translation, transform.translation) < PAPERBOY_REACH) {
+                    house.active = false;
+                    println!("space pressed, paperboy at {:?}, successfully delivered to a house!", transform);
+                } else {
+                    println!("space pressed, paperboy at {:?}, no active house in range", transform);
+                }
+            }
         }
     } else if keys.just_pressed(KeyCode::Tab) {
         println!("tab pressed, UI state is {:?}", ui_states.single().selection_mode);
